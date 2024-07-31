@@ -20,7 +20,14 @@ func main() {
 		if strings.Contains(s, "exit 0") {
 			os.Exit(0)
 		}
-		fmt.Fprint(os.Stdout, strings.TrimSpace(string(s))+": command not found\n")
 
+		if strings.Contains(s, "echo") {
+			message := strings.Split(s, "echo ")
+
+			fmt.Fprint(os.Stdin, strings.Join(message, "")+"\n")
+			continue
+		}
+
+		fmt.Fprint(os.Stdout, s+": command not found\n")
 	}
 }
