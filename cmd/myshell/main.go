@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"fmt"
 	"os"
+	"os/exec"
 	"path/filepath"
 	"strings"
 )
@@ -19,26 +20,37 @@ var commands = []Command{
 }
 
 func main() {
+	reader := bufio.NewReader(os.Stdin)
 
 	for {
 		fmt.Fprint(os.Stdout, "$ ")
-		s, err := bufio.NewReader(os.Stdout).ReadString('\n')
+		s, err := reader.ReadString('\n')
 
 		if err != nil {
 			fmt.Println("panic")
 			os.Exit(1)
 		}
 		s = strings.TrimSpace(s)
-		if strings.HasPrefix(s, "type ") { // type command takes an argument so we need to check string with HasPrefix command
-			parts := strings.Split(s, " ")
 
+		// Komut ve argümanları ayırma
+		parts := strings.Fields(s)
+		if len(parts) == 0 {
+			continue
+		}
+
+		cmdName := parts[0]
+		args := parts[1:]
+
+		if strings.HasPrefix(s, "type ") {
+			if len(parts) < 2 {
+				fmt.Fprint(os.Stdout, "type: missing operand\n")
+				continue
+			}
 			cmd := strings.TrimSpace(parts[1])
 			found := false
 
-			path := strings.Split(os.Getenv("PATH"), ":")
-
 			for _, v := range commands {
-				if strings.Contains(v.name, cmd) {
+				if v.name == cmd {
 					fmt.Fprint(os.Stdout, cmd+" is a shell builtin\n")
 					found = true
 					break
@@ -46,6 +58,7 @@ func main() {
 			}
 
 			if !found {
+				path := strings.Split(os.Getenv("PATH"), ":")
 				for _, dir := range path {
 					cmdPath := filepath.Join(dir, cmd)
 					if _, err := os.Stat(cmdPath); err == nil {
@@ -62,17 +75,31 @@ func main() {
 			continue
 		}
 
-		if strings.Contains(s, "exit 0") {
+		if cmdName == "exit" && len(args) > 0 && args[0] == "0" {
 			os.Exit(0)
 		}
 
-		if strings.HasPrefix(s, "echo") {
-			message := strings.Split(s, "echo ")
-
-			fmt.Fprint(os.Stdin, strings.Join(message, "")+"\n")
+		if cmdName == "echo" {
+			message := strings.Join(args, " ")
+			fmt.Fprint(os.Stdout, message+"\n")
 			continue
 		}
 
-		fmt.Fprint(os.Stdout, s+": command not found\n")
+		// Dosya yolunu kontrol et
+		path, err := exec.LookPath(cmdName)
+		if err != nil {
+			fmt.Fprint(os.Stdout, cmdName+": command not found\n")
+			continue
+		}
+
+		// Komutu oluştur ve çalıştır
+		cmd := exec.Command(path, args...)
+		cmd.Stdout = os.Stdout
+		cmd.Stderr = os.Stderr
+
+		if err := cmd.Run(); err != nil {
+			fmt.Fprint(os.Stdout, cmdName+": "+err.Error()+"\n")
+		}
 	}
 }
+
