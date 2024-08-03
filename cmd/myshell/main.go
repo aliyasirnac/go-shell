@@ -17,6 +17,7 @@ var commands = []Command{
 	{"type"},
 	{"exit"},
 	{"echo"},
+	{"pwd"},
 }
 
 func main() {
@@ -85,6 +86,11 @@ func main() {
 			continue
 		}
 
+		if cmdName == "pwd" {
+			fmt.Fprint(os.Stdout, os.Getenv("PWD")+"\n")
+			continue
+		}
+
 		// Dosya yolunu kontrol et
 		path, err := exec.LookPath(cmdName)
 		if err != nil {
@@ -102,4 +108,3 @@ func main() {
 		}
 	}
 }
-
