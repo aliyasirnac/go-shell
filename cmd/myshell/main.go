@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"path"
 	"path/filepath"
 	"strings"
 )
@@ -18,6 +19,7 @@ var commands = []Command{
 	{"exit"},
 	{"echo"},
 	{"pwd"},
+	{"cd"},
 }
 
 func main() {
@@ -87,7 +89,47 @@ func main() {
 		}
 
 		if cmdName == "pwd" {
-			fmt.Fprint(os.Stdout, os.Getenv("PWD")+"\n")
+			dir, err := os.Getwd()
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error printing directory: %s\n", err)
+				continue
+			}
+			fmt.Fprintf(os.Stdout, "%s\n", dir)
+			continue
+		}
+
+		if cmdName == "cd" {
+			if len(args) < 1 {
+				fmt.Fprintf(os.Stderr, "cd: missing argument\n")
+				continue
+			}
+
+			newDir := args[0]
+
+			// Handle home directory shortcut (~)
+			if newDir == "~" {
+				homeDir := os.Getenv("HOME")
+				if homeDir == "" {
+					fmt.Fprintf(os.Stderr, "cd: HOME environment variable not set\n")
+					continue
+				}
+				newDir = homeDir
+			} else if len(newDir) > 1 && newDir[0] == '~' {
+				// Handle the case where ~ is followed by a path (e.g., ~/dir)
+				homeDir := os.Getenv("HOME")
+				if homeDir == "" {
+					fmt.Fprintf(os.Stderr, "cd: HOME environment variable not set\n")
+					continue
+				}
+				newDir = path.Join(homeDir, newDir[1:])
+			}
+
+			err := os.Chdir(newDir)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "cd: %s: No such file or directory\n", newDir)
+				continue
+			}
+
 			continue
 		}
 
